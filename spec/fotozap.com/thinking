@@ -1,0 +1,104 @@
+require 'spec_helper'
+=begin
+curl -X POST "http://oo:3000/api.staging.fotozap.com/ssl/rest/upload/jpeg/campaign/100/barcodes/0905161616?pass=db8f9ec8313e0c0e6deac53abc82f54241f30833&user=c1%40s.pct.re&deviceSerial=a5414b6582db628ac731e65ecf6ad95747c95904" -F "qrcodes=HTTP://FOTOZAP.COM/Q/111c4b49n3ypr78" -F "file=@./albert.jpg;type=image/jpeg"
+
+{"pass"=>"db8f9ec8313e0c0e6deac53abc82f54241f30833", 
+ "user"=>"c1@s.pct.re", 
+"deviceSerial"=>"a5414b6582db628ac731e65ecf6ad95747c95904", 
+"qrcodes"=>"HTTP://FOTOZAP.COM/Q/111c4b49n3ypr78",
+ "file"=>{:filename=>"albert.jpg", 
+          :type=>"image/jpeg",
+          :name=>"file", 
+          :tempfile=>#<File:/var/folders/6l/sl8gr_t97t31glbq73k1w8x40000gn/T/RackMultipart20120907-77362-8geymy>, 
+          :head=>"Content-Disposition: form-data; name=\"file\"; filename=\"albert.jpg\"\r\nContent-Type: image/jpeg\r\n"}, 
+"splat"=>["api.staging.fotozap.com/ssl/rest/upload/jpeg/campaign/100/barcodes/0905161616"], 
+"captures"=>["api.staging.fotozap.com/ssl/rest/upload/jpeg/campaign/100/barcodes/0905161616"]}
+=end
+require 'tempfile'
+describe DialingComputer do
+  it "creates a stargate" do
+    tempfile = Tempfile.new('albert.jpg')
+    tempfile.write('cute puppy')
+    tempfile.rewind
+    dc = DialingComputer.new(
+      {"pass"=>"db8f9ec8313e0c0e6deac53abc82f54241f30833", 
+       "user"=>"c1@s.pct.re", 
+       "deviceSerial"=>"a5414b6582db628ac731e65ecf6ad95747c95904", 
+       "qrcodes"=>"HTTP://FOTOZAP.COM/Q/111c4b49n3ypr78",
+       "file"=>{:filename=>"albert.jpg", 
+                :type=>"image/jpeg",
+                :name=>"file", 
+                :tempfile=>tempfile,
+                :head=>"Content-Disposition: form-data; name=\"file\"; filename=\"albert.jpg\"\r\nContent-Type: image/jpeg\r\n"}, 
+                "splat"=>["api.staging.fotozap.com/ssl/rest/upload/jpeg/campaign/100/barcodes/0905161616"], 
+                "captures"=>["api.staging.fotozap.com/ssl/rest/upload/jpeg/campaign/100/barcodes/0905161616"]}
+    )
+    dc.stargate.point_of_origin.should == "a5414b6582db628ac731e65ecf6ad95747c95904"
+    dc.stargate.chevron_path.shouldd == "api.staging.fotozap.com/ssl/rest/upload/jpeg/campaign/100/barcodes/0905161616"
+    dc.stargate.payload.should ==  {"pass"=>"db8f9ec8313e0c0e6deac53abc82f54241f30833", 
+                                    "user"=>"c1@s.pct.re", 
+                                    "deviceSerial"=>"a5414b6582db628ac731e65ecf6ad95747c95904", 
+                                    "qrcodes"=>"HTTP://FOTOZAP.COM/Q/111c4b49n3ypr78",
+                                    "file"=>{:filename=>"albert.jpg", 
+                                             :type=>"image/jpeg",
+                                             :name=>"file", 
+                                             :tempfile=> tempfile,
+                                             :head=>"Content-Disposition: form-data; name=\"file\"; filename=\"albert.jpg\"\r\nContent-Type: image/jpeg\r\n"}, 
+    }
+    
+  end
+end
+describe Stargate do
+  subject {
+    Stargate.new(
+      point_of_origin:"uniqueDeviceId",
+      chevron_path:"host.com/path/path/path",
+      payload: {"param1" => '1', 
+                "param2" => '2'}
+    )
+  }
+end
+
+describe Site do
+  def app
+    Site
+  end
+#curl -X POST 
+#"
+  #https://
+  #api.staging.fotozap.com
+  #/ssl
+  #/rest
+  #/upload
+  #/jpeg
+  #/campaign
+  #/100
+  #/barcodes
+  #/0905161616
+  #?pass=db8f9ec8313e0c0e6deac53abc82f54241f30833
+  #&user=c1%40s.pct.re&
+  #deviceSerial=a5414b6582db628ac731e65ecf6ad95747c95904
+  #"
+  #-F "
+  #qrcodes=HTTP://FOTOZAP.COM/Q/111c4b49n3ypr78
+  #" -F "
+  #file=@/albert.jpg;type=image/jpeg
+  ######@/Users/blazingpair/Library/Application Support/iPhone Simulator/5.1/Applications/E0824A3B-A550-4377-86A2-C0524ACA8D07/Reproduce.app/Albert.JPG;type=image/jpeg
+  #"
+
+  context "post " do
+    context "api.staging.fotozap.com" do
+      before do
+        post "/api.staging.fotozap.com"
+      end
+      it "is ok" do
+        last_response.should be_ok
+
+      end
+
+      it "is not ok" do
+        last_response.should_not be_ok
+      end
+    end
+  end
+end
