@@ -29,3 +29,7 @@ your buckets
 
 
 http://localhost:9000/riak/rekon/go#/buckets
+
+
+#
+http://michaelvanrooijen.com/articles/2011/06/08-managing-and-monitoring-your-ruby-application-with-foreman-and-upstart/
