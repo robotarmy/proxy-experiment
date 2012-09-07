@@ -1,2 +1,31 @@
 ==chappa-ai
+currently the software is
+using deviceSerial as bucket
+and   the qrcode (base64encoded) as
+a key. it stores a base64 encoded
+version of the origianl HTTP POST
+body and sets 'requested?' to 0
+
 ------
+
+
+bc@sg1.ram9.cc
+blazingpair password
+
+this host has single node of riak
+running
+
+
+
+
+
+#set up tunnel to riak to use recon
+
+ssh -L 9000:0.0.0.0:8098 bc@sg1.ram9.cc  
+
+then locally acess rekon to see
+your buckets
+# 
+
+
+http://localhost:9000/riak/rekon/go#/buckets
