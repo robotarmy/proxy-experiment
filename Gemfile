@@ -2,7 +2,6 @@
 source "https://rubygems.org"
 gem 'riak-client'
 
-
 # replacement for  multi-json 
 gem 'yajl-ruby'
 
