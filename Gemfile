@@ -14,7 +14,7 @@ gem 'thin'
 
 # run processes
 gem 'foreman'
-
+gem 'debugger'
 group :test,:development do
   gem 'rspec'
   gem 'rack-test'

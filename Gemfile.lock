@@ -3,7 +3,15 @@ GEM
   specs:
     beefcake (0.3.7)
     builder (3.1.2)
+    columnize (0.3.6)
     daemons (1.1.9)
+    debugger (1.2.0)
+      columnize (>= 0.3.1)
+      debugger-linecache (~> 1.1.1)
+      debugger-ruby_core_source (~> 1.1.3)
+    debugger-linecache (1.1.2)
+      debugger-ruby_core_source (>= 1.1.1)
+    debugger-ruby_core_source (1.1.3)
     diff-lcs (1.1.3)
     eventmachine (0.12.10)
     excon (0.16.2)
@@ -45,6 +53,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  debugger
   excon
   foreman
   rack-test
