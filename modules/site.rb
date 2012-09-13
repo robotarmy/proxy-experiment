@@ -17,7 +17,7 @@ def write_request(record,record_index)
   object.raw_data = str = Yajl::Encoder.encode(record)
   object.content_type = 'application/json'
   object.indexes = record_index
-  #object.store
+  object.store
 end
 
 TRAFFIC_COMPLETE='traffic-completed-at'
