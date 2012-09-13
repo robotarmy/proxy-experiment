@@ -17,7 +17,7 @@ def write_request(record,record_index)
   object.raw_data = str = Yajl::Encoder.encode(record)
   object.content_type = 'application/json'
   object.indexes = record_index
-  object.store
+  #object.store
 end
 
 TRAFFIC_COMPLETE='traffic-completed-at'
@@ -27,6 +27,8 @@ module Thin
   class Connection
     alias :thin_connection_post_init :post_init
     def post_init(*args)
+
+      @header_complete = false
       p '--before thin_connection_post_init'
       @raw_receive_count  = 0
       #
@@ -65,6 +67,20 @@ module Thin
 
     alias :thin_connection_receive_data :receive_data
     def receive_data(*args)
+
+      # one possible implementation
+      #
+      #
+      if !@header_complete 
+        @r9h2 ||= []
+        buffer = args.first
+        @r9h2 = @r9h2 | buffer.split("\r\n\r\n").first.split("\r\n")
+        if buffer =~ /\r\n\r\n/
+          @header_complete = true
+        end
+
+      end
+      p @r9h2
       p '--before thin_connection_receive_data'
       @record["receive-data-#{@raw_receive_count}_base64"] = Base64.encode64(args.first) # data
       @record["receive-data-count"] = @raw_receive_count + 1
@@ -84,7 +100,13 @@ module Thin
 
     alias :thin_connection_unbind :unbind
     def unbind(*args)
-
+      #
+      #
+      # Unbind is not getting called 
+      #
+      #
+      #
+      #
       @record['connection-closed-at'] = Time.now.to_i
 
       write_request(@record,@record_index)
@@ -106,12 +128,19 @@ module Thin
   class Request
     attr_accessor :proxy_record,:proxy_record_index
     alias :thin_request_parse :parse
-    def parse(*args)
+    def parse(data)
+
+      # am i guarenteede the the headers are going 
+      # to be totally availible?
+      @r9headers ||= []
+      if !@parser.finished?
+        @r9headers = @r9headers | data.split("\r\n")
+      end
+      #p @r9headers 
       p '+++before thin_request_parse'
      # p args
       @env['thin.request'] = self
-    #  p @env
-      retval = thin_request_parse(*args)
+      retval = thin_request_parse(data)
       p '+++after thin_request_parse'
       return retval
     end

@@ -14,5 +14,12 @@ results.each do | key |
   p = Yajl::Parser.new
   hash = p.parse( $client['requests'][key].raw_data )
   p hash.keys
-  p hash['connection-closed-at']
+  p hash['traffic-completed-at-human']
+  receive_data_count = hash['receive-data-count']
+  
+  File.open(key+'.request',"w+b") do |doc|
+    0.upto(receive_data_count-1) do |index|
+      doc << Base64.decode64(hash["receive-data-#{index}_base64"])
+    end
+  end
 end
