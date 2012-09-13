@@ -38,7 +38,7 @@ module Thin
         'key' => $client.stamp.next,
         TRAFFIC_COMPLETE => -1,
       }
-      p @record
+      p @record['key']
       #
       # index gets timestamp and remote_ip
       @record_index = {
@@ -49,8 +49,8 @@ module Thin
       #
       
       @remote_ip =  remote_address
-      p @remote_ip + "connected"
-      p args
+     # p @remote_ip + "connected"
+     # p args
       write_request(@record,@record_index)
 
       retval = thin_connection_post_init(*args)
@@ -66,15 +66,16 @@ module Thin
     alias :thin_connection_receive_data :receive_data
     def receive_data(*args)
       p '--before thin_connection_receive_data'
-      @record["receive-data-#{@raw_receive_count}"] = args.first # data
+      @record["receive-data-#{@raw_receive_count}_base64"] = Base64.encode64(args.first) # data
       @record["receive-data-count"] = @raw_receive_count + 1
 
       write_request(@record,@record_index)
+      p @record['key']
 
       @raw_receive_count = @raw_receive_count + 1
 
-      p remote_address
-      p args
+     # p remote_address
+     # p args
 
       retval = thin_connection_receive_data(*args)
       p '--after thin_connection_receive_data'
@@ -90,8 +91,9 @@ module Thin
       
 
       p '--before thin_connection_unbind'
-      p @remote_ip + "- unbound connection"
-      p args
+#      p @remote_ip + "- unbound connection"
+#      p args
+      p @record['key']
       retval = thin_connection_unbind(*args)
       p '--after thin_connection_unbind'
       return  retval
@@ -106,9 +108,9 @@ module Thin
     alias :thin_request_parse :parse
     def parse(*args)
       p '+++before thin_request_parse'
-      p args
+     # p args
       @env['thin.request'] = self
-      p @env
+    #  p @env
       retval = thin_request_parse(*args)
       p '+++after thin_request_parse'
       return retval
@@ -130,12 +132,11 @@ class Site < Sinatra::Base
 
   post "/*" do
     begin
-    p params
     # request.body when wrapped in Rack::Lint needs 'read'
     #
    
-    p thin_request = request.env['thin.request'] #  hack
-    p raw_post = thin_request.body.string
+    thin_request = request.env['thin.request'] #  hack
+     raw_post = thin_request.body.string
     #debugger
 
     record = thin_request.proxy_record
