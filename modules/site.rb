@@ -5,6 +5,7 @@ require 'yajl'
 require 'uri'
 require 'debugger'
 require "base64"
+require 'yajl/json_gem' # MULTIJSON is a bad kitty # yajl can replace it with this line 
 
 $client = Riak::Client.new(:http_backend => :Excon)
 
@@ -14,6 +15,7 @@ def write_request(record,record_index)
   record.merge!(record_index)
   bucket = $client.bucket('requests')
   object = bucket.get_or_new(record['key'])
+  p record
   object.raw_data = str = Yajl::Encoder.encode(record)
   object.content_type = 'application/json'
   object.indexes = record_index
@@ -31,16 +33,20 @@ module Thin
       @header_complete = false
       p '--before thin_connection_post_init'
       @raw_receive_count  = 0
+
       #
       # CREATED_PHASE
       #
       # starts out with TRAFFIC_COMPLETE -1
       #
+      
+     
       @record = {
         'key' => $client.stamp.next,
         TRAFFIC_COMPLETE => -1,
       }
       p @record['key']
+
       #
       # index gets timestamp and remote_ip
       @record_index = {
@@ -51,8 +57,6 @@ module Thin
       #
       
       @remote_ip =  remote_address
-     # p @remote_ip + "connected"
-     # p args
       write_request(@record,@record_index)
 
       retval = thin_connection_post_init(*args)
@@ -67,20 +71,6 @@ module Thin
 
     alias :thin_connection_receive_data :receive_data
     def receive_data(*args)
-
-      # one possible implementation
-      #
-      #
-      if !@header_complete 
-        @r9h2 ||= []
-        buffer = args.first
-        @r9h2 = @r9h2 | buffer.split("\r\n\r\n").first.split("\r\n")
-        if buffer =~ /\r\n\r\n/
-          @header_complete = true
-        end
-
-      end
-      p @r9h2
       p '--before thin_connection_receive_data'
       @record["receive-data-#{@raw_receive_count}_base64"] = Base64.encode64(args.first) # data
       @record["receive-data-count"] = @raw_receive_count + 1
@@ -101,11 +91,7 @@ module Thin
     alias :thin_connection_unbind :unbind
     def unbind(*args)
       #
-      #
-      # Unbind is not getting called 
-      #
-      #
-      #
+      # Unbind is not getting called
       #
       @record['connection-closed-at'] = Time.now.to_i
 
@@ -113,8 +99,6 @@ module Thin
       
 
       p '--before thin_connection_unbind'
-#      p @remote_ip + "- unbound connection"
-#      p args
       p @record['key']
       retval = thin_connection_unbind(*args)
       p '--after thin_connection_unbind'
@@ -130,15 +114,7 @@ module Thin
     alias :thin_request_parse :parse
     def parse(data)
 
-      # am i guarenteede the the headers are going 
-      # to be totally availible?
-      @r9headers ||= []
-      if !@parser.finished?
-        @r9headers = @r9headers | data.split("\r\n")
-      end
-      #p @r9headers 
       p '+++before thin_request_parse'
-     # p args
       @env['thin.request'] = self
       retval = thin_request_parse(data)
       p '+++after thin_request_parse'
@@ -163,9 +139,10 @@ class Site < Sinatra::Base
     begin
     # request.body when wrapped in Rack::Lint needs 'read'
     #
-   
+    # 
+    # RAW POST IS enccoded in lower levels as part of recieve-data
+    #
     thin_request = request.env['thin.request'] #  hack
-     raw_post = thin_request.body.string
     #debugger
 
     record = thin_request.proxy_record
@@ -173,7 +150,6 @@ class Site < Sinatra::Base
 
     record_index['deviceSerial_bin'] = params['deviceSerial']
     record_index['qrcodes_bin']      = params['qrcodes']
-    record_index['request-complete_int']      = 1
 
     attributes = params.dup # take whatever sinatra parses
     attributes.delete('file') # favor raw post data
@@ -182,7 +158,6 @@ class Site < Sinatra::Base
 
     attributes['original-request-scheme']         = env['rack.url_scheme']
     attributes['raw-request-uri']  = env['REQUEST_URI'] # usefull for replay
-    attributes['complete-post-body-base64'] = Base64.encode64(raw_post)  # useful for replay
     attributes['requested?'] = 0   # has this REQUEST been forwarded?
 
     attributes[TRAFFIC_COMPLETE] = Time.now.to_i # changing value  to now
@@ -193,7 +168,7 @@ class Site < Sinatra::Base
     write_request(record,record_index)
 
     ret = "Nasrudin was riding on his donkey..."
-   rescue
+   rescue Exception
      p $!
      p $!.backtrace
      ret = 422 ## error

@@ -18,7 +18,7 @@ fake_head.encode!(Encoding::ASCII_8BIT)
 require 'socket'      # Sockets are in standard library
 
 hostname = 'localhost'
-port = 3000
+port = 9000
 
 def assert(condition, msg)
    if !condition

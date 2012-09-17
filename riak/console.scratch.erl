@@ -2,6 +2,10 @@
 ;; clear the requests bucket
 ;;
 
+RiakNode = 'riak@127.0.0.1'.
+
+{ok, C} = riak:client_connect(RiakNode).
+
 lists:foreach(
   fun (X) ->
     C:delete(<<"requests">>,X)
