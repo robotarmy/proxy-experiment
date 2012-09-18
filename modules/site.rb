@@ -9,99 +9,73 @@ require 'yajl/json_gem' # MULTIJSON is a bad kitty # yajl can replace it with th
 
 $client = Riak::Client.new(:http_backend => :Excon)
 
+class Time
+  def to_ms
+    (self.to_f * 1000.0).to_i
+  end
+end
+
 def write_request(record,record_index) 
   # include the index in the object
   #
   record.merge!(record_index)
   bucket = $client.bucket('requests')
   object = bucket.get_or_new(record['key'])
-  p record
   object.raw_data = str = Yajl::Encoder.encode(record)
   object.content_type = 'application/json'
   object.indexes = record_index
   object.store
 end
 
-TRAFFIC_COMPLETE='traffic-completed-at'
+TRAFFIC_COMPLETE='traffic-completed-at-ms'
 
 require 'thin'
 module Thin
   class Connection
+
+    def proxy_record
+      @request.proxy_record
+    end
+
+    def proxy_record_index
+      @request.proxy_record_index
+    end
+
     alias :thin_connection_post_init :post_init
     def post_init(*args)
+      @one = 1
 
-      @header_complete = false
-      p '--before thin_connection_post_init'
-      @raw_receive_count  = 0
-
-      #
-      # CREATED_PHASE
-      #
-      # starts out with TRAFFIC_COMPLETE -1
-      #
-      
-     
-      @record = {
-        'key' => $client.stamp.next,
-        TRAFFIC_COMPLETE => -1,
-      }
-      p @record['key']
-
-      #
-      # index gets timestamp and remote_ip
-      @record_index = {
-        'created-at_int' => Time.now.to_i.to_s,
-        'remote-address_bin' => remote_address.to_s
-      }
-      #
-      #
-      
-      @remote_ip =  remote_address
-      write_request(@record,@record_index)
 
       retval = thin_connection_post_init(*args)
 
-      # @request has been created
-      @request.proxy_record = @record
-      @request.proxy_record_index = @record_index
-      
-      p '--after thin_connection_post_init'
+      # initial request has been created
+      @request.start_proxy_record
+      #  write_request(proxy_record,proxy_record_index)
       return  retval
     end
 
     alias :thin_connection_receive_data :receive_data
     def receive_data(*args)
-      p '--before thin_connection_receive_data'
-      @record["receive-data-#{@raw_receive_count}_base64"] = Base64.encode64(args.first) # data
-      @record["receive-data-count"] = @raw_receive_count + 1
-
-      write_request(@record,@record_index)
-      p @record['key']
-
-      @raw_receive_count = @raw_receive_count + 1
-
-     # p remote_address
-     # p args
+      @two = 1
 
       retval = thin_connection_receive_data(*args)
-      p '--after thin_connection_receive_data'
+
       return  retval
     end
 
     alias :thin_connection_unbind :unbind
     def unbind(*args)
       #
-      # Unbind is not getting called
+      # two strange situations
       #
-      @record['connection-closed-at'] = Time.now.to_i
+      # Unbind is not getting called -- http clients seem to leave the connection open
+      #
+      # Unbind is getting called on quick open/close that comes with client request
+      #
+      proxy_record['connection-unbound-at'] = Time.now.to_ms
 
-      write_request(@record,@record_index)
-      
-
-      p '--before thin_connection_unbind'
-      p @record['key']
+    #  write_request(proxy_record,proxy_record_index)
       retval = thin_connection_unbind(*args)
-      p '--after thin_connection_unbind'
       return  retval
     end
 
@@ -111,14 +85,79 @@ end
 module Thin
   class Request
     attr_accessor :proxy_record,:proxy_record_index
+
+    def raw_receive_count
+      @raw_receive_count  ||= 0
+    end
+
+    def next_raw_receive_count 
+      @raw_receive_count = @raw_receive_count + 1
+    end
+    def commit_proxy_record
+      self.proxy_record_index['completed-at-ms_int'] =
+        Time.now.to_ms
+
+      dur = self.proxy_record['request-duration-ms'] =
+        self.proxy_record_index['completed-at-ms_int'] -
+        self.proxy_record_index['created-at-ms_int']
+
+
+      p self.proxy_record_index['completed-at-ms_int']
+      p self.proxy_record_index['created-at-ms_int']
+
+      #
+      #
+      #
+      # BUG : duration is not being  measured correctly
+      #
+      puts "Request Duration: #{dur} milliseconds"
+
+      write_request(self.proxy_record,self.proxy_record_index)
+    end
+
+    def start_proxy_record
+      @raw_receive_count  = 0
+      # index gets timestamp and remote_ip
+      self.proxy_record_index = {
+        'created-at-ms_int' => Time.now.to_ms,
+        'remote-ip_bin' => @env[REMOTE_ADDR]
+      }
+      #
+      # CREATED_PHASE
+      #
+      # starts out with TRAFFIC_COMPLETE -1
+      #
+      
+      self.proxy_record = {
+        'key' => $client.stamp.next,
+        TRAFFIC_COMPLETE => -1,
+      }
+
+    end
+
     alias :thin_request_parse :parse
     def parse(data)
-
-      p '+++before thin_request_parse'
       @env['thin.request'] = self
-      retval = thin_request_parse(data)
-      p '+++after thin_request_parse'
-      return retval
+      databits = data.encode(Encoding::ASCII_8BIT)
+      self.proxy_record["receive-data-#{raw_receive_count}_base64"] = Base64.encode64(databits) # data
+      self.proxy_record["receive-data-#{raw_receive_count}_bin"] = databits
+      self.proxy_record["receive-data-length-#{raw_receive_count}"] = databits.unpack("C*").length
+      self.proxy_record["receive-data-count"] = raw_receive_count + 1
+
+      write_request(proxy_record,proxy_record_index)
+
+      next_raw_receive_count
+
+
+      parser_is_finshished = thin_request_parse(data)
+
+      if parser_is_finshished
+        p "Commiting Request"
+        commit_proxy_record
+        start_proxy_record # for keep-alive
+      end
+
+      return parser_is_finshished
     end
   end
 end
@@ -137,11 +176,7 @@ class Site < Sinatra::Base
 
   post "/*" do
     begin
-    # request.body when wrapped in Rack::Lint needs 'read'
-    #
-    # 
-    # RAW POST IS enccoded in lower levels as part of recieve-data
-    #
+
     thin_request = request.env['thin.request'] #  hack
     #debugger
 
@@ -160,7 +195,7 @@ class Site < Sinatra::Base
     attributes['raw-request-uri']  = env['REQUEST_URI'] # usefull for replay
     attributes['requested?'] = 0   # has this REQUEST been forwarded?
 
-    attributes[TRAFFIC_COMPLETE] = Time.now.to_i # changing value  to now
+    attributes[TRAFFIC_COMPLETE] = Time.now.to_ms # changing value  to now
     attributes[TRAFFIC_COMPLETE+"-human"] = Time.now.to_s # changing value  to now
 
 
