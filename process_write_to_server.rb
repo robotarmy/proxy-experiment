@@ -94,7 +94,7 @@ results.each do | key |
   record['replay-response'] = response.string
   
   write_request(record)
-  if !response.string.length > 0
+  unless response.string.length > 0
     puts "socket should have  something in it"
   end
 
