@@ -6,6 +6,15 @@ a key. it stores a base64 encoded
 version of the origianl HTTP POST
 body and sets 'requested?' to 0
 
+
+current issues:
+
+raw body has to be base64 encoding as ruby seems to be writing \u0234 characters
+in a ASCII_8BIT stream even if i ask it not to.
+
+HTTP keep-alive and millisecond request measurement is broken - Thin::Stat
+is doing it correct hovever if you use rackup to boot  the server
+
 ------
 
 
@@ -17,11 +26,25 @@ running
 
 
 
+# upstart export
+#http://michaelvanrooijen.com/articles/2011/06/08-managing-and-monitoring-your-ruby-application-with-foreman-and-upstart/
 
 
-#set up tunnel to riak to use recon
+rvmsudo foreman export upstart /etc/init -a chappa-ai -u bc -p 5000
+rvmsudo foreman export upstart /etc/init -a chappa-ai-80 -u bc -p 80
 
-ssh -L 9000:0.0.0.0:8098 bc@sg1.ram9.cc  
+# as root
+
+  service chappa-ai-80 stop start
+  service chappa-ai stop  start
+
+  service riak stop  start
+
+
+#set up tunnel to riak to use recon on 9100
+
+ssh -L 9100:0.0.0.0:8098 bc@sg1.ram9.cc  
+ssh -L 9100:0.0.0.0:8098 bc@sg1.ram9.cc  
 
 then locally acess rekon to see
 your buckets
@@ -31,54 +54,12 @@ your buckets
 http://localhost:9000/riak/rekon/go#/buckets
 
 
-Load data into Riak through CHAPPA-AI- (one record for now)
-
-'sh ./request.sg1.ram9.cc'
-
-- At the moment - Version 0.1.0
---- Change the deviceSerial to be a new bucket
----- Change the QR Code for a deviceSerial to be a new Key
-
-=======
-DESIGN & ARCHITECTURE Chappa-ai
--
-- Keep in mind:
-- Riak can be massively scalable and fault tolerant - we can use this to ensure that if a client connection
-really finished to the Chappa-ai - then it is "safe at base" ( when we start to leverage multi riak nodes )
-
-
-
-Questions:
-
-What is the homogenious set of requests from a particular device - known as TRANSACTION?
-
-
-
-What is the proper key for each device's TRANSACTION - ?
-
---  right now the key is the qr-code => this key is incorrect.
---  as it allows only one record to exist for each qr-code request (and there could be dozens or hundreds)
--- a Naive solution would  be to use some kind of generated unique key
-
-What does the server do if the request to upload fails on the remote endpoint?
- - How many times should it retry it?
-
-How do  we know if the client is submitting idential TRANSACTIONS?
-
-How do we distinguish between order-sensitive requests as part of a transaction?
-
-
-If Chappai was a Baseball game and Safe at Home Base was having completed the request as if Chappa-ai didn't
-exist - and  'Safe at first base' was delivered to the Chappa-ai and client told SUCCESS - What is second-base
-and third base - and how do we get to home base?
-
 
 #
-http://michaelvanrooijen.com/articles/2011/06/08-managing-and-monitoring-your-ruby-application-with-foreman-and-upstart/
 
 
 
-== Riak
+== Riak setup
 
 for secondary indexes
 
