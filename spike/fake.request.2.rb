@@ -34,7 +34,7 @@ def assert(condition, msg)
    end
 end
 
-s = TCPSocket.open(hostname, port)
+#s = TCPSocket.open(hostname, port)
 Socket.tcp(hostname,port) do | s |
 s.print(fake_head)
 s.print(fake_body)

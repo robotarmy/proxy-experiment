@@ -15,15 +15,15 @@ class Time
   end
 end
 
-def write_request(record,record_index) 
+def write_request(record,record_index = false) 
   # include the index in the object
   #
-  record.merge!(record_index)
+  record.merge!(record_index) if record_index
   bucket = $client.bucket('requests')
   object = bucket.get_or_new(record['key'])
   object.raw_data = str = Yajl::Encoder.encode(record)
   object.content_type = 'application/json'
-  object.indexes = record_index
+  object.indexes = record_index if record_index
   object.store
 end
 
@@ -94,6 +94,7 @@ module Thin
       @raw_receive_count = @raw_receive_count + 1
     end
     def commit_proxy_record
+      self.proxy_record_index['request-complete_int'] = 1
       self.proxy_record_index['completed-at-ms_int'] =
         Time.now.to_ms
 
@@ -140,7 +141,15 @@ module Thin
       @env['thin.request'] = self
       databits = data.encode(Encoding::ASCII_8BIT)
       self.proxy_record["receive-data-#{raw_receive_count}_base64"] = Base64.encode64(databits) # data
-      self.proxy_record["receive-data-#{raw_receive_count}_bin"] = databits
+
+      # encoding is not getting set properly
+      #process_write_to_file.rb:58:in `parse': lexical error: invalid bytes in UTF8 string. (Yajl::ParseError)
+      #
+      ##  this fails in trying to force binary encoding
+      #self.proxy_record["receive-data-#{raw_receive_count}_bin"] = databits.unpack("C*").pack("C*")
+      # this also fails in trying to force binary encoding
+      # unicode bytes are not breaking apart
+      ##self.proxy_record["receive-data-#{raw_receive_count}_bin"].encode!(Encoding::ASCII_8BIT)
       self.proxy_record["receive-data-length-#{raw_receive_count}"] = databits.unpack("C*").length
       self.proxy_record["receive-data-count"] = raw_receive_count + 1
 
@@ -148,13 +157,11 @@ module Thin
 
       next_raw_receive_count
 
-
       parser_is_finshished = thin_request_parse(data)
 
       if parser_is_finshished
         p "Commiting Request"
         commit_proxy_record
-        start_proxy_record # for keep-alive
       end
 
       return parser_is_finshished
@@ -201,6 +208,11 @@ class Site < Sinatra::Base
 
     record.merge!(attributes)
     write_request(record,record_index)
+        
+    # 
+    # oh spagetti
+    # 
+    thin_request.start_proxy_record # for keep-alive
 
     ret = "Nasrudin was riding on his donkey..."
    rescue Exception

@@ -6,6 +6,20 @@ require 'uri'
 require 'debugger'
 require "base64"
 
+$client = Riak::Client.new(:http_backend => :Excon)
+def write_request(record,record_index = false) 
+  # include the index in the object
+  #
+  record.merge!(record_index) if record_index
+  bucket = $client.bucket('requests')
+  object = bucket.get_or_new(record['key'])
+  object.raw_data = str = Yajl::Encoder.encode(record)
+  object.content_type = 'application/json'
+  object.indexes = record_index if record_index
+  object.store
+end
+
+
 def delete_actual_host_from_request_path(path) 
     
      first_line = path
@@ -31,6 +45,8 @@ def proccess_request_record(key,hash, &block)
      first_line_end = header.index("\r\n")
      request_path = header[0...first_line_end] # ... is inclusive range
      actual_host = delete_actual_host_from_request_path(request_path)
+    
+     block.call(true,actual_host)
 
     puts " ACTUAL HOST : "+  actual_host
 
@@ -40,16 +56,16 @@ def proccess_request_record(key,hash, &block)
 
     # stream request over block
     if block_given?
-      block.call( header )
+      block.call(false,header )
       1.upto(receive_data_count-1) do |index|
-        block.call( Base64.decode64(hash["receive-data-#{index}_base64"]))
+        block.call( false,Base64.decode64(hash["receive-data-#{index}_base64"]))
       end
     end
   end
 end
 
+require 'socket'      # Sockets are in standard library
 
-$client = Riak::Client.new(:http_backend => :Excon)
 results = $client.get_index('requests','request-complete_int','1')
 p results
 results.each do | key |
@@ -57,10 +73,31 @@ results.each do | key |
   p = Yajl::Parser.new
   record = p.parse( $client['requests'][key].raw_data )
 
-  File.open(key+'.request',"w+b") do |doc|
-    proccess_request_record(key,record) do | request_stream_entry|
-      doc << request_stream_entry
+  socket = nil
+
+  proccess_request_record(key,record) do | setup,request_stream_entry|
+
+    if setup
+      hostname,port = request_stream_entry.split(":")
+      port = "80" unless port
+      p 'opening...',hostname,port
+      socket = TCPSocket.open(hostname, port)
+    else
+      socket.print request_stream_entry
     end
+
   end
+  socket.close_write
+  response = StringIO.new(''.encode!(Encoding::ASCII_8BIT))
+  response << socket.gets
+  p response.string
+  record['replay-response'] = response.string
+  
+  write_request(record)
+  if !response.string.length > 0
+    puts "socket should have  something in it"
+  end
+
+  socket.close if socket
 end
 
