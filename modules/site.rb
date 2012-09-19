@@ -177,12 +177,22 @@ class Site < Sinatra::Base
   before '*' do
     @title = "Site"
   end
+
+  # passthrough device #
+  get '/api.staging.fotozap.com/*' do
+    host = "api.staging.fotozap.com"
+    store_request(replay = false)
+    
+    uri = env['REQUEST_URI'] # has a / on the front
+    forward_call = "#{env['rack.url_scheme']}:/#{uri}"
+    Excon.get(forward_call)
+  end
+
   get '/' do
     erb(:main)
   end
-
-  post "/*" do
-    begin
+  def store_request(replayable = true)
+  begin
 
     thin_request = request.env['thin.request'] #  hack
     #debugger
@@ -192,7 +202,7 @@ class Site < Sinatra::Base
 
     record_index['deviceSerial_bin'] = params['deviceSerial']
     record_index['qrcodes_bin']      = params['qrcodes']
-
+    record_index['replayable_int']   = ( replayable ? 1 : 0)
     attributes = params.dup # take whatever sinatra parses
     attributes.delete('file') # favor raw post data
     attributes.delete('splat') # * glob
@@ -200,7 +210,7 @@ class Site < Sinatra::Base
 
     attributes['original-request-scheme']         = env['rack.url_scheme']
     attributes['raw-request-uri']  = env['REQUEST_URI'] # usefull for replay
-    attributes['requested?'] = 0   # has this REQUEST been forwarded?
+    attributes['requested?'] = 0 if replayable
 
     attributes[TRAFFIC_COMPLETE] = Time.now.to_ms # changing value  to now
     attributes[TRAFFIC_COMPLETE+"-human"] = Time.now.to_s # changing value  to now
@@ -221,6 +231,10 @@ class Site < Sinatra::Base
      ret = 422 ## error
    end
     ret
+  end
+
+  post "/*" do
+    store_request
   end
   
 end
