@@ -177,20 +177,28 @@ class Site < Sinatra::Base
   before '*' do
     @title = "Site"
   end
-
-  # passthrough device #
-  get '/api.staging.fotozap.com/*' do
+	def passthrough_device
     host = "api.staging.fotozap.com"
     store_request(replay = false)
     
     uri = env['REQUEST_URI'] # has a / on the front
-    forward_call = "#{env['rack.url_scheme']}:/#{uri}"
+    forward_call = "#{env['rack.url_scheme']}://#{host}#{uri}"
+    puts "forward call: #{forward_call}"
+    p forward_call 
+   begin
     Excon.get(forward_call)
-  end
-
-  get '/' do
+   rescue Exception
+ret = $!.backtrace
+end
+end
+  get '/iris' do
     erb(:main)
   end
+  get '/*' do
+	passthrough_device
+  end
+
+
   def store_request(replayable = true)
   begin
 
