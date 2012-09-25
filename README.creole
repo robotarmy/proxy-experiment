@@ -60,6 +60,7 @@ K POST's with time DELTA-1 must all occur successfully
 Implementation Notes:
 
 Riak worked out really well - Secondary Indexs are nice to use.
+Needs 1GB machine to run operating system + space for DB
 
 Ruby encoding issues are cropping up here - forced_encoding seems to still
 be transmitting broken unicode to server.
