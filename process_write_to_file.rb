@@ -6,6 +6,8 @@ require 'uri'
 require 'debugger'
 require "base64"
 
+$client = Riak::Client.new(:http_backend => :Excon)
+
 def delete_actual_host_from_request_path(path) 
     
      first_line = path
@@ -49,7 +51,6 @@ def proccess_request_record(key,hash, &block)
 end
 
 
-$client = Riak::Client.new(:http_backend => :Excon)
 results = $client.get_index('requests','request-complete_int','1')
 p results
 results.each do | key |

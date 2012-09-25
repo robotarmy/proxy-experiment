@@ -16,16 +16,20 @@ class Time
 end
 
 def write_request(record,record_index = false) 
+
   # include the index in the object
   #
   record.merge!(record_index) if record_index
-  bucket = $client.bucket('requests')
-  object = bucket.get_or_new(record['key'])
-  object.raw_data = str = Yajl::Encoder.encode(record)
-  object.content_type = 'application/json'
-  object.indexes = record_index if record_index
-  object.store
+
+    bucket = $client.bucket('requests')
+    object = bucket.get_or_new(record['key'])
+    object.raw_data = str = Yajl::Encoder.encode(record)
+    object.content_type = 'application/json'
+    object.indexes = record_index if record_index
+    object.store
+    puts "stored request"
 end
+
 
 TRAFFIC_COMPLETE='traffic-completed-at-ms'
 
@@ -223,8 +227,14 @@ class Site < Sinatra::Base
     # oh spagetti
     # 
     thin_request.start_proxy_record # for keep-alive
-
-    ret = "Nasrudin was riding on his donkey..."
+    ret = %%<?xml version="1.0" encoding="UTF-8"?>
+<methodResponse>
+    <params>
+        <param>
+            <value>Image successfully uploaded to Nasrudin's Donkey</value>
+        </param>
+    </params>
+</methodResponse>%
    rescue Exception
      p $!
      p $!.backtrace
@@ -234,6 +244,8 @@ class Site < Sinatra::Base
   end
 
   post "/*" do
+    puts "--Sintra- Complete Request arrived #{params}"
+    content_type "application/xml", :charset => 'utf-8'
     store_request
   end
   

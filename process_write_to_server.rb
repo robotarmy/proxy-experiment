@@ -8,8 +8,10 @@ require 'yajl'
 require 'uri'
 require 'debugger'
 require "base64"
-
+require_relative "./spike/filestore"
 $client = Riak::Client.new(:http_backend => :Excon)
+
+
 def write_request(record,record_index = false) 
   # include the index in the object
   #
@@ -68,6 +70,36 @@ def proccess_request_record(key,hash, &block)
 end
 
 require 'socket'      # Sockets are in standard library
+require 'openssl'
+
+# https://www.braintreepayments.com/braintrust/sslsocket-verify_mode-doesnt-verify?
+def verify_ssl_certificate(preverify_ok, ssl_context)
+  if preverify_ok != true || ssl_context.error != 0
+    err_msg = "SSL Verification failed -- Preverify: #{preverify_ok}, Error: #{ssl_context.error_string} (#{ssl_context.error})"
+    puts "Verify Failed - if this was a real server - I would care"
+    #raise OpenSSL::SSL::SSLError.new(err_msg)
+  end
+  true
+end
+
+def setup_socket(hostname,port)
+
+socket = TCPSocket.new(hostname, port)
+
+ssl_context = OpenSSL::SSL::SSLContext.new()
+ssl_context.verify_mode = OpenSSL::SSL::VERIFY_PEER
+ssl_context.verify_callback = proc do |preverify_ok, ssl_context|
+  verify_ssl_certificate(preverify_ok, ssl_context)
+end
+ssl_context.ca_file = File.join(File.dirname(__FILE__),"ssl" ,"cacert.pem")
+
+ssl_socket = OpenSSL::SSL::SSLSocket.new(socket, ssl_context)
+ssl_socket.sync_close = true
+ssl_socket.connect
+
+ssl_socket
+
+end
 
 results = $client.get_index('requests','request-complete_int','1')
 p results
@@ -76,23 +108,24 @@ results.each do | key |
   p = Yajl::Parser.new
   record = p.parse( $client['requests'][key].raw_data )
 
-  socket = nil
+  secure =nil
+  socket =nil
 
   proccess_request_record(key,record) do | setup,request_stream_entry|
 
     if setup
       hostname,port = request_stream_entry.split(":")
-      port = "80" unless port
+      port = "443" unless port
       p 'opening...',hostname,port
-      socket = TCPSocket.open(hostname, port)
+      secure,socket = setup_socket(hostname,port)
     else
-      socket.print request_stream_entry
+      secure.print request_stream_entry
     end
 
   end
-  socket.close_write
+  socket.close_write if socket.respond_to? :close_write
   response = StringIO.new(''.encode!(Encoding::ASCII_8BIT))
-  response << socket.gets
+  response << secure.gets
   p response.string
   record['replay-response'] = response.string
   
