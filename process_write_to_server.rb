@@ -1,5 +1,8 @@
 # encoding: UTF-8
-
+#
+# # ssl 
+# https://www.braintreepayments.com/braintrust/sslsocket-verify_mode-doesnt-verify?
+#
 require 'riak'
 require 'yajl'
 require 'uri'

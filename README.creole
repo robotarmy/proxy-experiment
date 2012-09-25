@@ -1,3 +1,76 @@
+September 19th 2012 - Recap
+--
+
+My initial exploration began with em-proxy.
+At some point - it became clear early on that
+it would be difficult to customize it and the
+documentation was very poor - the biggest
+concern that I had with it was lack of the ability
+to declare dynamically the request destination and
+to fullfull the requirment of 'return 200' on POST 
+immediately and then replay the request as needed.
+
+It would be nice to use a simple existing proxy solution
+but unfortunalty the 'return 200 on POST' requirement
+turns the problem towards a larger unknown.
+
+The condition of the Zebra server at the time of our
+original design meeting was that the client was being
+forced to implement reply/retry code within it's internals.
+
+The original design meeting was centered around creating
+a device that could answer the following questions:
+
+- Did we use/request HTTP Keep Alive for HTTP?
+ (yes)
+
+- What was the throughput for a device to chappa-ai and from chappa-ai to server-endpoint.
+
+- What is the Average Time to upload a post? (Basic stats - as simple as possible to compute)
+
+- What is the average time to upload a video? (100MB)
+
+- How many times do 'request' connections need to be retried to the server-endpoint before success?
+
+- How many successful bytes in a failed connection?
+
+- How many successful connections?
+
+Server Design Notes:
+
+IOS will background connections at 10 minutes by closing.
+
+Current Client implementation will :
+- use 6 conncurent connections
+- restart connections every 3 minutes if incomplete.
+- re-run error connections every 5 seconds
+- russians never give up.
+
+GET requests should pass through immediatley and syncronously for stable app 
+
+All requests should return immediate success 200, if they are malformed we are returning 422.
+
+A Zebra Transaction is a sequence of K POST Requests
+
+A Transaction may be identified by it's 'qrcode' parameter
+
+K POST's with time DELTA-1 must all occur successfully
+
+
+Implementation Notes:
+
+Riak worked out really well - Secondary Indexs are nice to use.
+
+Ruby encoding issues are cropping up here - forced_encoding seems to still
+be transmitting broken unicode to server.
+
+Base64 encoded to get around Ruby 
+
+
+
+
+
+
 ==chappa-ai
 currently the software is
 using deviceSerial as bucket
