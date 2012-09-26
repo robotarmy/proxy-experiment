@@ -101,11 +101,13 @@ ssl_socket
 
 end
 
-results = $client.get_index('requests','request-complete_int','1')
-p results
+results = $client.get_index('requests','replayable_int','1')
+
 results.each do | key |
   p key
   p = Yajl::Parser.new
+
+
   record = p.parse( $client['requests'][key].raw_data )
 
   secure =nil
@@ -124,12 +126,12 @@ results.each do | key |
 
   end
   socket.close_write if socket.respond_to? :close_write
+
   response = StringIO.new(''.encode!(Encoding::ASCII_8BIT))
   response << secure.gets
   p response.string
   record['replay-response'] = response.string
-  
-  write_request(record)
+  write_request(record, {'replayable_int' => 0 })
   unless response.string.length > 0
     puts "socket should have  something in it"
   end
