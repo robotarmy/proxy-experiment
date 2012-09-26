@@ -136,6 +136,7 @@ results.each do | key |
     puts "socket should have  something in it"
   end
 
+  secure.close if secure 
   socket.close if socket
 end
 
