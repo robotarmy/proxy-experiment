@@ -1,3 +1,29 @@
+OCT 2nd 2012 - Talked with  hollin
+
+Hollin brought up a message framework tool named STORM that would likely allow us  to solve the durability issue.
+
+I was attempting to stream body as it came in into the riak db - which is what i think killed it.
+
+Essentially There is a gap between 200 OK and where the filesystem has the one and only copy before
+it get's written the the slow log.
+
+The idea that we discussed is around how we are saying "It's OK" to the mobile device when we havn't actually
+delivered the package - their is a gap in time before the package is off the filesystem localy and into what
+i am calling the slow-log (the database that can be used for evaluating the finished/unfinished requests for
+analytics or understading if the mobile's network or /server is healthy)
+
+One possible solution is to use the traditional erlang approach of 3 nodes for 1 node and stream the file over
+to the 2 nodes for disk write as it is coming in - and then have the 'head' node commit to slow log. 
+
+This would cover the gap. The Storm project is about doing real time computating in a distributed way. 
+
+As the brits say - 'mind the gap'. It is important part of this problem not to tell a mobile device '200'
+when we cannot ensure that eventually the file is delivered.
+
+Also Chappa-ai Upload is closer to a reverse CDN than a proxy.
+
+
+
 Oct 1st 2012 - Recap
 --
 
