@@ -47,7 +47,7 @@ filesystem.
 This would turn the scaling problem into nodes and put limit
 into device IO.
 
-
+{{{
 [DEVICE 1..N] ==> [INTERNET] ==> [CHAPPA-AI X..Y] =>
 
 Essentially  two input cases - get and post
@@ -57,7 +57,7 @@ Essentially  two input cases - get and post
 ((post? request)
  (slow-log (response (chappa-ai-replay request,device) device) , request, device))
 )
-
+}}}
 
 
 
