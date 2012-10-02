@@ -12,17 +12,27 @@ I have mailed the riak list. I think that the durability
 of riak is the right thing - the memory/filesystem likely
 needs to be tuned.
 
-Memcache is another possible solution that i know but
-it is not durable and since this is not a caching problem,
-but a replay problem.
-
 My intuition is that similar issues would come up in other
 large datastores - only in different ways and at different
 times.
 
+Memcache is another possible solution that i know but
+it is not durable and since this is not a caching problem,
+but a replay problem it seems unsuitable.
+
+Couchdb has basically the same properties of Riak.
+
+Mongodb has basically the same properties as Couchdb with alternative
+implementations of query and replication - It could be a good slow-log
+for very large logs.
+
 It is my feeling that Riak could be tuned to this problem
 and that perhaps setting the n_val to 1 would turn it into
 a single node correctly for this purpose.
+
+It may be the case that no datastore is appropriate for this problem -
+since the data need not be propigated or avalible to wide network during
+processing - a keyvalue store has little use except in later analysis.
 
 The problem of replay is complex and durability is not really
 a large concern over time - only for a span of time whe
@@ -30,7 +40,7 @@ the request has not been replayed - It has not been considered
 how long the storage system should maintain any history of 
 traffic.
 
-the file-system-store approach is using pstore as an index
+the current file-system-store approach is using pstore as an index
 , using the filesystem as the key-value bucket, and then 
 processing based on the index.
 
@@ -41,11 +51,12 @@ fine bucket for incomming requests - and that the problem
 of logging and tracing completed requests could then be
 folded into a seperate datastore - for queriablity and
 traceing of data - something relatively simple like a SQL
-store could be used - it would be a slow record of the local
-filesystem.
+store could be used - it would be a slow record of the requests
+that have passed through local chappa-ai node.
 
-This would turn the scaling problem into nodes and put limit 
-on request processing into server read/write disk-IO,
+This would turn the scaling problem into traditional distributed nodes 
+and put limit  on request processing into server read/write disk-IO:
+which is a simpler problem and generally known.
 
 {{{
 [DEVICE 1..N] ==> [INTERNET] ==> [CHAPPA-AI X..Y] =>
