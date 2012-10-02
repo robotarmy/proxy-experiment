@@ -1,3 +1,43 @@
+Oct 1st 2012 - Recap
+--
+
+file-system-store is the branch that is running on production.
+
+the riak system has crashed do to the way that i am using it
+I think that is is suffering from the high replay of writes over
+during requests. Secondary Indexing seems to be failing on
+the final write.
+
+I have mailed the riak list. I think that the durability
+of riak is the right thing - the memory/filesystem likely
+needs to be tuned.
+
+Memcache is another possible solution that i know but
+it is not durable and since this is not a caching problem,
+but a replay problem.
+
+My intuition is that similar issues would come up in other
+large datastores - only in different ways and at different
+times.
+
+It is my feeling that Riak could be tuned to this problem
+and that perhaps setting the n_val to 1 would turn it into
+a single node correctly for this purpose.
+
+The problem of replay is complex and durability is not really
+a large concern over time - only for a span of time whe
+the request has not been replayed - It has not been considered
+how long the storage system should maintain any history of 
+traffic.
+
+the file-system-store approach is using pstore as an index
+, using the filesystem as the key-value bucket, and then 
+processing based on the index.
+
+process_write_to_server is still a manual process
+
+
+
 September 19th 2012 - Recap
 --
 
