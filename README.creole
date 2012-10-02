@@ -36,6 +36,29 @@ processing based on the index.
 
 process_write_to_server is still a manual process
 
+My last thought is that the filesystem locally could be a
+fine bucket for incomming requests - and that the problem
+of logging and tracing completed requests could then be
+folded into a seperate datastore - for queriablity and
+traceing of data - something relatively simple like a SQL
+store could be used - it would be a slow record of the local
+filesystem.
+
+This would turn the scaling problem into nodes and put limit
+into device IO.
+
+
+[DEVICE 1..N] ==> [INTERNET] ==> [CHAPPA-AI X..Y] =>
+
+Essentially  two input cases - get and post
+(cond 
+ ((get?  request)
+ (slow-log (response (chappa-ai-passthrough request,device) device), request, device)
+((post? request)
+ (slow-log (response (chappa-ai-replay request,device) device) , request, device))
+)
+
+
 
 
 September 19th 2012 - Recap
