@@ -6,6 +6,7 @@ require 'uri'
 require 'debugger'
 require "base64"
 
+$client = Riak::Client.new(:http_backend => :Excon)
 
 
 def proccess_request_record(key,hash, &block) 
@@ -23,7 +24,6 @@ def proccess_request_record(key,hash, &block)
 end
 
 
-$client = Riak::Client.new(:http_backend => :Excon)
 results = $client.get_index('requests','request-complete_int','1')
 p results
 results.each do | key |
