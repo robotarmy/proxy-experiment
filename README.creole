@@ -44,8 +44,8 @@ traceing of data - something relatively simple like a SQL
 store could be used - it would be a slow record of the local
 filesystem.
 
-This would turn the scaling problem into nodes and put limit
-into device IO.
+This would turn the scaling problem into nodes and put limit 
+on request processing into server read/write disk-IO,
 
 {{{
 [DEVICE 1..N] ==> [INTERNET] ==> [CHAPPA-AI X..Y] =>
